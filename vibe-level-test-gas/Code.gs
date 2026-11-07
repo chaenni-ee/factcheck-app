@@ -14,6 +14,10 @@ var HEADER = ['제출 시각', '회차', '이름', '총점', '레벨',
 
 /* 문항별 영역(index.html의 Q 배열 순서와 같아야 합니다) */
 var Q_CATS = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3];
+/* 문항당 최고 점수(보기 3개 → 0~2점). 영역당 6점, 총 24점 */
+var MAX_PT = 2;
+var CAT_MAX = MAX_PT * 3;
+var TOTAL_MAX = MAX_PT * Q_CATS.length;
 
 function doGet(e) {
   var params = (e && e.parameter) ? e.parameter : {};
@@ -39,7 +43,7 @@ function saveResponse(room, rec) {
   // 점수는 서버에서 다시 계산합니다(문항별 점수만 믿고 나머지는 재계산).
   var a = rec.a.map(function (v) {
     v = Number(v);
-    if (!(v >= 0 && v <= 3) || Math.floor(v) !== v) throw new Error('응답 값이 올바르지 않아요.');
+    if (!(v >= 0 && v <= MAX_PT) || Math.floor(v) !== v) throw new Error('응답 값이 올바르지 않아요.');
     return v;
   });
   var c = [0, 0, 0, 0], s = 0;
@@ -89,7 +93,8 @@ function getSheet_() {
   return sh;
 }
 
-function levelOf_(s) { return s <= 8 ? 1 : s <= 16 ? 2 : s <= 24 ? 3 : s <= 31 ? 4 : 5; }
+/* 24점 만점 기준 레벨 구간: 0–5 / 6–10 / 11–15 / 16–20 / 21–24 (index.html의 levelOf와 같아야 합니다) */
+function levelOf_(s) { return s <= 5 ? 1 : s <= 10 ? 2 : s <= 15 ? 3 : s <= 20 ? 4 : 5; }
 
 function cleanRoom_(r) {
   r = String(r || 'main').replace(/[^A-Za-z0-9가-힣_-]/g, '').slice(0, 20);
@@ -123,9 +128,9 @@ function onOpen() {
 var DASH_NAME = '요약 그래프';
 var LEVEL_NAMES = ['말랑 새싹이', '두리번 탐험가', '척척 조립가', '뚝딱 메이커', '바이브 마법사'];
 var CAT_NAMES = ['개념 이해', '도구 경험', '프롬프트 감각', '수업 적용'];
-var Q_LABELS = ['바이브코딩 설명', 'AI 코드를 대하는 태도', '웹앱·배포', 'AI 사용 정도', '만든 결과물 수', '데이터 저장',
-  '밋밋한 결과 대응', '프롬프트에 넣을 정보', '오류 대응', '수업 적용 경험', '학생 사용 전 점검', 'AI 에이전트'];
-var Q1_OPTS = ['전혀 설명할 수 없어요', '이름만 들어 봤어요', '대략 설명할 수 있어요', '자세히 설명하고 가르칠 수 있어요'];
+var Q_LABELS = ['바이브코딩 설명', '코드 살펴보기', 'AI 에이전트', 'AI 사용 경험', '링크로 공유·배포', '데이터 저장',
+  '밋밋한 결과 대응', '기능이 많은 앱 요청', '오류 대응', '수업 적용 경험', '수업 목표와 연결', '학생 사용 전 점검'];
+var Q1_OPTS = ['처음 들어 보거나 이름만 들어 봤어요', '대략 설명할 수 있어요', '예를 들어 다른 선생님께 설명할 수 있어요'];
 
 function buildDashboard() {
   getSheet_();
@@ -151,7 +156,7 @@ function buildDashboard() {
   sh.getRange('I1').setFormula('=IF(OR($B$1="",$B$1="전체"),"*",$B$1&"")');
 
   // 회차 선택과 요약 숫자
-  sh.getRange('A1:B3').setValues([['회차 선택', '전체'], ['참여 인원', ''], ['평균 점수(36점)', '']]);
+  sh.getRange('A1:B3').setValues([['회차 선택', '전체'], ['참여 인원', ''], ['평균 점수(' + TOTAL_MAX + '점)', '']]);
   sh.getRange('B1').setDataValidation(SpreadsheetApp.newDataValidation()
     .requireValueInRange(sh.getRange('H2:H200'), true).setAllowInvalid(true).build())
     .setBackground('#fff7d6').setFontWeight('bold');
@@ -169,14 +174,14 @@ function buildDashboard() {
 
   // 표 2: 영역별 평균 (12~16행)
   row = 12;
-  sh.getRange(row, 1, 1, 2).setValues([['영역', '평균(9점)']]);
+  sh.getRange(row, 1, 1, 2).setValues([['영역', '평균(' + CAT_MAX + '점)']]);
   var catTop = row + 1;
   ['F', 'G', 'H', 'I'].forEach(function (c, i) {
     sh.getRange(catTop + i, 1).setValue(CAT_NAMES[i]);
     sh.getRange(catTop + i, 2).setFormula('=IFERROR(ROUND(AVERAGEIF(' + ROOM + ',' + CRIT + ',' + col(c) + '),1),0)');
   });
 
-  // 표 3: 1번 문항 응답 (19~23행)
+  // 표 3: 1번 문항 응답 (19~22행)
   row = 19;
   sh.getRange(row, 1, 1, 2).setValues([['1번: 바이브코딩을 설명할 수 있나요?', '인원']]);
   var q1Top = row + 1;
@@ -185,9 +190,9 @@ function buildDashboard() {
     sh.getRange(q1Top + k, 2).setFormula('=COUNTIFS(' + ROOM + ',' + CRIT + ',' + col('J') + ',' + k + ')');
   });
 
-  // 표 4: 문항별 평균 (26~38행)
-  row = 26;
-  sh.getRange(row, 1, 1, 2).setValues([['문항', '평균(3점)']]);
+  // 표 4: 문항별 평균 (25~37행)
+  row = 25;
+  sh.getRange(row, 1, 1, 2).setValues([['문항', '평균(' + MAX_PT + '점)']]);
   var qTop = row + 1;
   var qCols = ['J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U'];
   Q_LABELS.forEach(function (t, i) {
@@ -196,7 +201,7 @@ function buildDashboard() {
   });
 
   // 서식
-  [5, 12, 19, 26].forEach(function (r) {
+  [5, 12, 19, 25].forEach(function (r) {
     sh.getRange(r, 1, 1, 2).setFontWeight('bold').setBackground('#1c2140').setFontColor('#ffffff');
   });
   sh.getRange('A1:A3').setFontWeight('bold');
@@ -207,9 +212,9 @@ function buildDashboard() {
 
   // 차트 (D열부터 세로로 배치)
   addChart_(sh, Charts.ChartType.COLUMN, sh.getRange(lvTop, 1, 5, 2), 1, '레벨 분포 (명)', null, '#ff5d73');
-  addChart_(sh, Charts.ChartType.BAR, sh.getRange(catTop, 1, 4, 2), 20, '영역별 평균 (9점 만점)', 9, '#1fb89a');
-  addChart_(sh, Charts.ChartType.BAR, sh.getRange(q1Top, 1, 4, 2), 39, '바이브코딩을 설명할 수 있나요? (명)', null, '#0d7f6a');
-  addChart_(sh, Charts.ChartType.BAR, sh.getRange(qTop, 1, 12, 2), 58, '문항별 평균 (3점 만점)', 3, '#35b99c', 460);
+  addChart_(sh, Charts.ChartType.BAR, sh.getRange(catTop, 1, 4, 2), 20, '영역별 평균 (' + CAT_MAX + '점 만점)', CAT_MAX, '#1fb89a');
+  addChart_(sh, Charts.ChartType.BAR, sh.getRange(q1Top, 1, Q1_OPTS.length, 2), 39, '바이브코딩을 설명할 수 있나요? (명)', null, '#0d7f6a');
+  addChart_(sh, Charts.ChartType.BAR, sh.getRange(qTop, 1, 12, 2), 58, '문항별 평균 (' + MAX_PT + '점 만점)', MAX_PT, '#35b99c', 460);
 
   ss.setActiveSheet(sh);
 }
