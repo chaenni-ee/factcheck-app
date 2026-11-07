@@ -206,17 +206,17 @@ function param(name){
 
 /* 영역: 0 개념 이해 · 1 도구 경험 · 2 프롬프트 감각 · 3 수업 적용 (영역마다 3문항)
    보기는 3개이고 점수 0~2 순서로 적는다. 0: 아직 모름·안 해 봄 / 1: 알고 있거나 조금 해 봄 / 2: 직접 할 수 있음
-   fixed가 아닌 질문은 화면에서 보기 순서를 섞어서 보여 준다. */
+   보기는 화면에도 이 순서(쉬운 단계 → 어려운 단계) 그대로 보여 준다. */
 var CATS = ["개념 이해","도구 경험","프롬프트 감각","수업 적용"];
 var Q = [
- {c:0,s:"바이브코딩 설명",fixed:true,q:"‘바이브코딩’이 무엇인지 설명할 수 있나요?",
+ {c:0,s:"바이브코딩 설명",q:"‘바이브코딩’이 무엇인지 설명할 수 있나요?",
   o:["처음 들어 보거나 이름만 들어 봤어요.","대략 어떤 것인지 설명할 수 있어요.","예를 들어 가며 다른 선생님께 설명할 수 있어요."]},
  {c:0,s:"코드 살펴보기",q:"AI가 만들어 준 코드를 열어 보면 나는?",
   o:["어디가 무엇인지 전혀 모르겠어요.","글자나 색처럼 간단한 부분은 어디인지 찾을 수 있어요.","화면, 기능, 저장을 맡는 부분이 어디인지 대략 구분할 수 있어요."]},
  {c:0,s:"AI 에이전트",q:"‘AI 에이전트’에 대해 알고 있는 것은?",
   o:["처음 들어 보거나 챗봇과 같은 것이라고 생각해요.","AI가 여러 단계의 일을 스스로 처리하는 것이라고 알고 있어요.","파일 정리나 웹사이트 작업 같은 일을 에이전트에게 실제로 맡겨 봤어요."]},
  {c:1,s:"AI 사용 경험",q:"지금까지 AI를 써 본 경험에 가장 가까운 것은?",
-  o:["AI 채팅(챗GPT, 제미나이 등)을 거의 써 보지 않았어요.","AI 채팅으로 글이나 수업 자료를 만들어 봤어요.","AI로 앱이나 웹페이지를 만들어 봤어요. (캔바 AI, 제미나이 캔버스, 러버블 등)"]},
+  o:["AI 채팅(챗GPT, 제미나이 등)을 거의 써 보지 않았어요.","AI 채팅으로 간단한 글이나 이미지 등 수업 자료를 만들어 봤어요.","AI로 앱이나 웹페이지를 만들어 봤어요. (캔바 AI, 제미나이 캔버스, 러버블 등)"]},
  {c:1,s:"링크로 공유·배포",q:"내가 만든 웹앱을 링크로 다른 사람에게 공유(배포)해 본 적이 있나요?",
   o:["‘배포’가 무슨 뜻인지 잘 모르겠어요.","뜻은 알지만 직접 해 본 적은 없어요.","직접 만든 웹앱을 링크로 공유해 봤어요."]},
  {c:1,s:"데이터 저장",q:"응답이 저장되고 쌓이는 앱(설문, 퀴즈 기록 등)을 만든다면?",
@@ -411,10 +411,6 @@ var app = document.getElementById("app");
 var state = {i:0, ans:[], order:[], name:"", lock:false, saved:false};
 var isTeacher = function(){ return param("teacher")!==null || location.hash==="#teacher"; };
 
-function shuffle(a){
-  for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}
-  return a;
-}
 function brand(right){
   return '<div class="brand"><span><i class="dot"></i><b>vibe_level.test</b></span><span>'+right+'</span></div>';
 }
@@ -454,7 +450,7 @@ function renderIntro(){
    '</section>';
   document.getElementById("start").onclick=function(){
     state.name=document.getElementById("nick").value.trim();
-    state.order=Q.map(function(q){var idx=q.o.map(function(_,k){return k;}); return q.fixed?idx:shuffle(idx);});
+    state.order=Q.map(function(q){return q.o.map(function(_,k){return k;});}); // 난도 순서 그대로
     state.ans=Q.map(function(){return null;});
     state.i=0; state.lock=false;
     renderQ();
@@ -610,7 +606,7 @@ function q1HTML(A){
 }
 
 function qListHTML(A){
-  var legend='<div class="legend"><span><i class="s0"></i>낮음</span><span><i class="s1"></i>중간</span><span><i class="s2"></i>높음</span><span>(보기 순서가 아닌 수준 기준)</span></div>';
+  var legend='<div class="legend"><span><i class="s0"></i>낮음</span><span><i class="s1"></i>중간</span><span><i class="s2"></i>높음</span></div>';
   var rows=Q.map(function(q,i){
     var d=A.dist[i], hi=d[MAX_PT];
     var stack=A.n?'<div class="stack">'+d.map(function(v,k){return v?'<i class="s'+k+'" style="width:'+(v/A.n*100)+'%"></i>':'';}).join('')+'</div>':'<div class="stack"></div>';
