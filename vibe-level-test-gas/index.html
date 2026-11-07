@@ -110,6 +110,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .share .btn{margin-top:10px;font-size:18px;background:#fff;color:var(--ink)}
 .note{min-height:20px;margin:8px 0 0;font-size:13px;color:var(--mint);text-align:center}
 .result .again{margin-top:6px;text-align:center}
+.toteacher{margin-top:10px;text-align:center}
+.toteacher .link{display:inline-block;font-size:13px}
 
 /* 교사 화면 */
 .t-head{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch;margin-bottom:16px}
@@ -443,6 +445,8 @@ function renderIntro(){
     '<label class="field"><span>이름 또는 별명 (선택)</span><input id="nick" type="text" maxlength="12" autocomplete="off" placeholder="예: 5학년 3반 선생님"></label>'+
     '<button class="btn" id="start" type="button">테스트 시작</button>'+
     '<div class="meta"><span>질문 12개</span><span>약 3분</span><span>결과 캐릭터 5종</span></div>'+
+    /* 앱스크립트 화면은 iframe 안에서 열리므로 target="_top"으로 바깥 창을 이동한다 */
+    '<div class="toteacher"><a class="link" href="'+esc(pageUrls().tea)+'" target="_top">교사 화면으로 가기</a></div>'+
    '</section>';
   document.getElementById("start").onclick=function(){
     state.name=document.getElementById("nick").value.trim();
@@ -623,9 +627,12 @@ function feedHTML(recs){
   }).join('')+'</div>';
 }
 
-function urlsHTML(){
+function pageUrls(){
   var base=(BOOT&&BOOT.url)?BOOT.url:location.href.split(/[?#]/)[0], rq=room!=="main"?("r="+encodeURIComponent(room)):"";
-  var stu=base+(rq?"?"+rq:""), tea=base+"?teacher"+(rq?"&"+rq:"");
+  return {stu:base+(rq?"?"+rq:""), tea:base+"?teacher"+(rq?"&"+rq:"")};
+}
+function urlsHTML(){
+  var u=pageUrls(), stu=u.stu, tea=u.tea;
   return '<b>참여자 주소 (QR로 만들어 화면에 띄우세요)</b><code>'+esc(stu)+'</code><b>교사 화면 주소 (회차: '+esc(room)+')</b><code>'+esc(tea)+'</code>';
 }
 

@@ -103,7 +103,130 @@ function safeText_(v) {
   return v ? "'" + v : v;
 }
 
-/* 편집기에서 한 번 실행하면 시트 권한을 승인하고 '응답' 시트를 만들어 둡니다. */
+/* 편집기에서 한 번 실행하면 시트 권한을 승인하고 '응답' 시트와 '요약 그래프' 시트를 만들어 둡니다. */
 function setup() {
   getSheet_();
+  buildDashboard();
+}
+
+/* 시트를 열면 위쪽 메뉴에 '바이브 테스트'가 생깁니다. */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('바이브 테스트')
+    .addItem('요약 그래프 만들기 / 다시 만들기', 'buildDashboard')
+    .addToUi();
+}
+
+/* ============ 요약 그래프 시트 ============
+   수식으로 집계하고 그 표를 차트로 그립니다. 응답이 쌓이면 표와 차트가 저절로 바뀝니다.
+   B1 칸에서 회차(또는 '전체')를 고르면 그 회차만 집계합니다. */
+var DASH_NAME = '요약 그래프';
+var LEVEL_NAMES = ['말랑 새싹이', '두리번 탐험가', '척척 조립가', '뚝딱 메이커', '바이브 마법사'];
+var CAT_NAMES = ['개념 이해', '도구 경험', '프롬프트 감각', '수업 적용'];
+var Q_LABELS = ['바이브코딩 설명', 'AI 코드를 대하는 태도', '웹앱·배포', 'AI 사용 정도', '만든 결과물 수', '데이터 저장',
+  '밋밋한 결과 대응', '프롬프트에 넣을 정보', '오류 대응', '수업 적용 경험', '학생 사용 전 점검', 'AI 에이전트'];
+var Q1_OPTS = ['전혀 설명할 수 없어요', '이름만 들어 봤어요', '대략 설명할 수 있어요', '자세히 설명하고 가르칠 수 있어요'];
+
+function buildDashboard() {
+  getSheet_();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(DASH_NAME);
+  if (sh) {
+    sh.getCharts().forEach(function (c) { sh.removeChart(c); });
+    sh.clear();
+    sh.getDataRange().clearDataValidations();
+  } else {
+    sh = ss.insertSheet(DASH_NAME);
+  }
+
+  var R = "'" + SHEET_NAME + "'!";      // '응답'!
+  var ROOM = R + '$B$2:$B';             // 회차 열
+  var CRIT = '$I$1';                     // 집계 조건(숨긴 칸)
+  var col = function (c) { return R + c + '$2:' + c; }; // 예: '응답'!E$2:E
+
+  // 숨긴 도우미 칸: 회차 목록과 조건
+  sh.getRange('H1').setValue('회차 목록');
+  sh.getRange('H2').setValue('전체');
+  sh.getRange('H3').setFormula('=IFERROR(SORT(UNIQUE(FILTER(' + ROOM + ',' + ROOM + '<>""))),"")');
+  sh.getRange('I1').setFormula('=IF(OR($B$1="",$B$1="전체"),"*",$B$1&"")');
+
+  // 회차 선택과 요약 숫자
+  sh.getRange('A1:B3').setValues([['회차 선택', '전체'], ['참여 인원', ''], ['평균 점수(36점)', '']]);
+  sh.getRange('B1').setDataValidation(SpreadsheetApp.newDataValidation()
+    .requireValueInRange(sh.getRange('H2:H200'), true).setAllowInvalid(true).build())
+    .setBackground('#fff7d6').setFontWeight('bold');
+  sh.getRange('B2').setFormula('=COUNTIF(' + ROOM + ',' + CRIT + ')');
+  sh.getRange('B3').setFormula('=IFERROR(ROUND(AVERAGEIF(' + ROOM + ',' + CRIT + ',' + col('D') + '),1),0)');
+
+  // 표 1: 레벨 분포 (5~10행)
+  var row = 5;
+  sh.getRange(row, 1, 1, 2).setValues([['레벨', '인원']]);
+  var lvTop = row + 1;
+  LEVEL_NAMES.forEach(function (n, i) {
+    sh.getRange(lvTop + i, 1).setValue('Lv.' + (i + 1) + ' ' + n);
+    sh.getRange(lvTop + i, 2).setFormula('=COUNTIFS(' + ROOM + ',' + CRIT + ',' + col('E') + ',' + (i + 1) + ')');
+  });
+
+  // 표 2: 영역별 평균 (12~16행)
+  row = 12;
+  sh.getRange(row, 1, 1, 2).setValues([['영역', '평균(9점)']]);
+  var catTop = row + 1;
+  ['F', 'G', 'H', 'I'].forEach(function (c, i) {
+    sh.getRange(catTop + i, 1).setValue(CAT_NAMES[i]);
+    sh.getRange(catTop + i, 2).setFormula('=IFERROR(ROUND(AVERAGEIF(' + ROOM + ',' + CRIT + ',' + col(c) + '),1),0)');
+  });
+
+  // 표 3: 1번 문항 응답 (19~23행)
+  row = 19;
+  sh.getRange(row, 1, 1, 2).setValues([['1번: 바이브코딩을 설명할 수 있나요?', '인원']]);
+  var q1Top = row + 1;
+  Q1_OPTS.forEach(function (t, k) {
+    sh.getRange(q1Top + k, 1).setValue(t);
+    sh.getRange(q1Top + k, 2).setFormula('=COUNTIFS(' + ROOM + ',' + CRIT + ',' + col('J') + ',' + k + ')');
+  });
+
+  // 표 4: 문항별 평균 (26~38행)
+  row = 26;
+  sh.getRange(row, 1, 1, 2).setValues([['문항', '평균(3점)']]);
+  var qTop = row + 1;
+  var qCols = ['J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U'];
+  Q_LABELS.forEach(function (t, i) {
+    sh.getRange(qTop + i, 1).setValue((i + 1) + '. ' + t);
+    sh.getRange(qTop + i, 2).setFormula('=IFERROR(ROUND(AVERAGEIF(' + ROOM + ',' + CRIT + ',' + col(qCols[i]) + '),2),0)');
+  });
+
+  // 서식
+  [5, 12, 19, 26].forEach(function (r) {
+    sh.getRange(r, 1, 1, 2).setFontWeight('bold').setBackground('#1c2140').setFontColor('#ffffff');
+  });
+  sh.getRange('A1:A3').setFontWeight('bold');
+  sh.setColumnWidth(1, 250);
+  sh.setColumnWidth(2, 90);
+  sh.setColumnWidth(3, 20);
+  sh.hideColumns(8, 2); // H, I 도우미 칸 숨기기
+
+  // 차트 (D열부터 세로로 배치)
+  addChart_(sh, Charts.ChartType.COLUMN, sh.getRange(lvTop, 1, 5, 2), 1, '레벨 분포 (명)', null, '#ff5d73');
+  addChart_(sh, Charts.ChartType.BAR, sh.getRange(catTop, 1, 4, 2), 20, '영역별 평균 (9점 만점)', 9, '#1fb89a');
+  addChart_(sh, Charts.ChartType.BAR, sh.getRange(q1Top, 1, 4, 2), 39, '바이브코딩을 설명할 수 있나요? (명)', null, '#0d7f6a');
+  addChart_(sh, Charts.ChartType.BAR, sh.getRange(qTop, 1, 12, 2), 58, '문항별 평균 (3점 만점)', 3, '#35b99c', 460);
+
+  ss.setActiveSheet(sh);
+}
+
+function addChart_(sh, type, range, rowPos, title, max, color, height) {
+  // 세로 막대는 세로축(vAxis), 가로 막대는 가로축(hAxis)이 값 축입니다.
+  var axis = type === Charts.ChartType.COLUMN ? 'vAxis' : 'hAxis';
+  var b = sh.newChart()
+    .setChartType(type)
+    .addRange(range)
+    .setPosition(rowPos, 4, 0, 0)
+    .setOption('title', title)
+    .setOption('legend.position', 'none')
+    .setOption('colors', [color])
+    .setOption('width', 620)
+    .setOption('height', height || 340)
+    .setOption(axis + '.viewWindow.min', 0);
+  if (max) b.setOption(axis + '.viewWindow.max', max);
+  sh.insertChart(b.build());
 }
