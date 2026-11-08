@@ -403,7 +403,14 @@ function makeGasStore(){
 var storePromise = null;
 function getStore(){
   if(storePromise) return storePromise;
-  storePromise = Promise.resolve(/^https?:\/\//.test(API_URL) ? makeGasStore() : makeLocalStore());
+  var s;
+  if(/googleusercontent\.com\/macros\/echo/.test(API_URL)){
+    /* 브라우저 주소창에 남은 임시 결과 주소를 넣은 경우: 저장할 수 없으니 데모 모드로 두고 안내한다 */
+    s=makeLocalStore(); s.badUrl=true;
+  }else{
+    s=/^https?:\/\//.test(API_URL) ? makeGasStore() : makeLocalStore();
+  }
+  storePromise = Promise.resolve(s);
   return storePromise;
 }
 
@@ -417,7 +424,9 @@ function brand(right){
 }
 function demoBanner(store, withSwitch){
   if(store.mode!=="local") return "";
-  var msg = '데모 모드예요. 파일 위쪽 API_URL에 앱스크립트 주소를 넣기 전에는 이 기기에서만 저장돼요.';
+  var msg = store.badUrl
+    ? 'API_URL에 들어간 주소가 앱스크립트 웹 앱 주소가 아니에요. 배포 → 배포 관리에서 …/exec 로 끝나는 주소를 복사해 넣어 주세요. 지금은 이 기기에만 저장돼요.'
+    : '데모 모드예요. 파일 위쪽 API_URL에 앱스크립트 주소를 넣기 전에는 이 기기에서만 저장돼요.';
   var sw = withSwitch
     ? '<button type="button" class="link" id="swview">'+(isTeacher()?'참여자 화면 보기':'교사 화면 보기')+'</button>' : '';
   return '<div class="demo">'+msg+sw+'</div>';
