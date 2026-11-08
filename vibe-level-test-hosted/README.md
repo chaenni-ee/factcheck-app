@@ -43,7 +43,25 @@ var API_URL = "https://script.google.com/macros/s/……/exec";
 4. 생긴 주소(`https://○○○.netlify.app`)가 참여자 주소입니다.
    - 사이트 설정에서 주소 앞부분 이름을 `vibe-test-2026`처럼 바꿀 수 있습니다.
 
-> GitHub Pages, tiiny.host 같은 다른 정적 호스팅도 `index.html` 하나만 올리면 똑같이 동작합니다.
+## 3단계 대신: GitHub Pages에 올리기
+
+1. https://github.com 에 가입하고 로그인합니다.
+2. 오른쪽 위 **+ → New repository**를 누릅니다.
+   - 이름 예: `vibe-test`
+   - **Public**을 고릅니다. 무료 계정의 GitHub Pages는 공개 저장소만 됩니다.
+   - **Create repository**를 누릅니다.
+3. 저장소 화면의 **uploading an existing file** 링크(또는 **Add file → Upload files**)를 누르고 `index.html`을 끌어다 놓은 뒤 **Commit changes**를 누릅니다.
+4. 저장소 **Settings → Pages**로 갑니다.
+   - Source: **Deploy from a branch**
+   - Branch: **main**, 폴더 **/(root)** → **Save**
+5. 1~2분 뒤 같은 화면 위쪽에 주소가 나옵니다: `https://아이디.github.io/vibe-test/`
+   - 이 주소가 참여자 주소이고, 교사 화면은 `https://아이디.github.io/vibe-test/?teacher`입니다.
+
+**고칠 때:** 저장소에서 `index.html`을 누르고 ✏️(연필)로 직접 고치거나, **Add file → Upload files**로 새 파일을 다시 올립니다. 1~2분 뒤 반영됩니다. 바로 안 바뀌면 새로 고침(Ctrl+F5)을 해 보세요.
+
+> 공개 저장소라서 `index.html` 안의 문항과 `API_URL` 주소는 누구나 볼 수 있습니다. Netlify에 올려도 페이지 소스에서 보이는 것은 마찬가지입니다. 응답 데이터는 구글 시트에만 있고, 이름과 점수는 교사 화면을 여는 사람이면 볼 수 있습니다.
+
+> tiiny.host 같은 다른 정적 호스팅도 `index.html` 하나만 올리면 똑같이 동작합니다.
 
 ## 주소
 
